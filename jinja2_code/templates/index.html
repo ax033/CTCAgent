@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>通原问答系统</title>
+
+    <!-- 引入 Bootstrap -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- 引入 Font Awesome 图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <!-- 引入一个名为 marked 的 JavaScript 库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/2.1.3/marked.min.js"></script>
+    <!-- 引入 MathJax 用于渲染 LaTeX 公式 -->
+    <script type="text/javascript" async
+            src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+    </script>
+
+    <script type="text/javascript"
+            src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+        }
+
+        .card {
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-custom {
+            background-color: #007bff;
+            color: white;
+            border-radius: 50px;
+            padding: 10px 20px;
+            box-shadow: 0 2px 4px rgba(0, 123, 255, 0.4);
+        }
+
+        .btn-custom:hover {
+            background-color: #0056b3;
+            color: white;
+        }
+
+        .result-container {
+            margin-top: 20px;
+        }
+
+        .responsive-image {
+            max-width: 80%;
+            height: auto;
+            margin: 10px auto;
+            display: block;
+            border-radius: 8px;
+        }
+
+        /* 针对小屏幕的样式优化 */
+    @media (max-width: 600px) {
+        .responsive-image {
+            max-width: 100%; /* 小屏幕下图片宽度为100% */
+            max-height: 300px; /* 高度限制适当减少 */
+        }
+    }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="text-center mb-4">
+        <h1 class="text-primary">通信原理问答系统Agent</h1>
+        <p class="text-secondary">提交问题和图片</p>
+    </div>
+
+    <!-- 提问框 -->
+    <div class="row mb-4">
+        <div class="col-lg-6 col-md-12 mb-4">
+            <div class="card p-4">
+                <h3 class="text-secondary"><i class="fas fa-question-circle"></i> 提问框</h3>
+                <textarea id="question" rows="4" class="form-control" placeholder="请输入您的问题..."
+                          maxlength="50"></textarea>
+                <small id="charCount" class="form-text text-muted">最多输入50个字</small>
+            </div>
+        </div>
+
+        <!-- 上传附件 -->
+        <div class="col-lg-6 col-md-12 mb-4">
+            <div class="card p-4">
+                <h3 class="text-secondary"><i class="fas fa-upload"></i> 上传附件</h3>
+                <input type="file" id="fileInput" accept=".jpg,.png,.jpeg" class="form-control">
+            </div>
+        </div>
+    </div>
+
+    <!-- 提交按钮 -->
+    <div class="text-center">
+        <button class="btn btn-custom" onclick="validateAndSubmit()">
+            <i class="fas fa-paper-plane"></i> 提交问题
+        </button>
+    </div>
+
+    <!-- 渲染结果 -->
+    <div id="result" class="result-container mt-5 card p-4">
+        <h3 class="text-secondary"><i class="fas fa-chart-bar"></i> 结果</h3>
+        <div id="markdownPreview">
+            <!-- 这里插入 iframe进行内嵌网页 -->
+<!--?            <iframe-->
+<!--?                    src="https://aaa123lll.github.io/BFexperiment/"-->
+<!--?                    width="100%"-->
+<!--?                    height="600"-->
+<!--?                    style="border: none;">-->
+<!--?            </iframe>-->
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]  // 允许使用 $...$ 作为行内公式
+            }
+        };
+    </script>
+<script>
+        async function sendRequest() {
+            try {
+                // 获取用户输入
+                const question = document.getElementById('question').value;
+
+                // 获取用户上传的文件
+                const fileInput = document.getElementById('fileInput');
+                const file = fileInput.files[0];
+
+                // 构造 FormData 数据
+                const formData = new FormData();
+                formData.append("config", JSON.stringify({content: question })); // 用户问题
+                formData.append("entrance", JSON.stringify({ mode: "NORMAL" })); // 入口信息
+                formData.append("locale", JSON.stringify({ language: "ZH" })); // 语言信息
+
+                if (file) {
+                    formData.append("image", file); // 添加文件
+                }
+
+                // 发送请求到后端 http://10.3.244.173:9450/tasks_distribute  http://127.0.0.1:8000/tasks_distribute
+                const response = await fetch('http://10.3.244.173:9450/tasks_distribute', {
+                    method: 'POST',
+                    body: formData, // 使用 FormData 作为请求体
+                });
+
+                // 解析返回结果
+                if (response.ok) {
+                    const data = await response.json();
+                    handleResponse(data);
+                } else {
+                    throw new Error(`请求失败，状态码：${response.status}`);
+                }
+            } catch (error) {
+                console.error("发送请求时发生错误：", error);
+                alert("请求失败，请检查输入内容或网络连接！");
+            }
+        }
+
+
+        function handleResponse(data) {
+            const resultContainer = document.getElementById('result');
+
+            // 清空结果区域
+            resultContainer.innerHTML = "";
+
+            // 替换连续换行符为单个空格，并格式化内容
+            const content = data.content; // 保留换行结构，但去掉多余空行.replace(/\n+/g, '\n')
+            const splitResult = splitMarkdownImagesInline(content); // 保留图片在内容中的位置
+
+            // 使用 marked.js 和 MathJax 逐段渲染内容
+            const htmlSegments = splitResult.map(segment => {
+                if (segment.type === "text") {
+                    // 将换行符替换为 <br>
+                    const formattedText = segment.content.replace(/\n/g, "<br>");
+
+                    // 包裹在 div 中，确保 MathJax 能解析公式
+                    return `<div>${formattedText}</div>`;
+                } else if (segment.type === "image") {
+                    // 使用 marked.js 渲染图片 Markdown
+                    // return marked.parse(segment.content).trim();
+                    const imageHtml = marked.parse(segment.content);
+                    return imageHtml.replace('<img', '<img class="responsive-image"'); // 添加自适应类名
+                }
+            });
+
+            // 渲染结果
+            resultContainer.innerHTML = htmlSegments.join('');
+
+            // 渲染 LaTeX 公式
+            MathJax.typesetPromise().catch(err => console.error("MathJax 渲染错误:", err));
+        }
+
+        function splitMarkdownImagesInline(content) {
+            const regex = /(!\[(.*?)\]\((.*?)\))/g; // 匹配 Markdown 图片
+            const result = [];
+            let lastIndex = 0;
+
+            let match;
+            while ((match = regex.exec(content)) !== null) {
+                if (match.index > lastIndex) {
+                    // 追加非图片的文本部分
+                    result.push({
+                        type: "text",
+                        content: content.slice(lastIndex, match.index)
+                    });
+                }
+
+                // 追加图片部分
+                result.push({
+                    type: "image",
+                    content: match[0] // 整个图片 Markdown
+                });
+
+                lastIndex = regex.lastIndex; // 更新索引
+            }
+
+            // 添加剩余的文本内容
+            if (lastIndex < content.length) {
+                result.push({
+                    type: "text",
+                    content: content.slice(lastIndex)
+                });
+            }
+
+            return result;
+        }
+
+        const textarea = document.getElementById('question');
+        const charCount = document.getElementById('charCount');
+
+        textarea.addEventListener('input', function () {
+            //这个限制这个文本框只能输入的字符个数，多的内容不会放入文本框
+            const remaining = 50 - textarea.value.length;
+            charCount.textContent = `最多输入${remaining}个字`;
+        });
+
+
+        function validateAndSubmit() {
+            const question = document.getElementById('question').value.trim();
+            const fileInput = document.getElementById('fileInput').files.length;
+
+            if (!question && fileInput === 0) {
+                alert("请输入问题！");
+            } else {
+                sendRequest(); // 调用你的实际提交函数
+            }
+        }
+    </script>
+
+</body>
+</html>
